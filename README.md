@@ -26,7 +26,7 @@ This project is a simple REST API to simulate the operation of an ATM. It allows
 
 ## Requirements
 
-- Go 1.16 или выше
+- Go 1.16 or higher
 - Gorilla Mux
 
 ## Installation
