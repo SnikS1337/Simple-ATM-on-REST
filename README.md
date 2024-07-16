@@ -46,7 +46,7 @@ This project is a simple REST API to simulate the operation of an ATM. It allows
    go run main.go
 
 ## Usage
-Для использования API вы можете использовать инструменты, такие как Postman или curl, для отправки HTTP-запросов к конечным точкам.
+To use the API, you can use tools like Postman or curl to send HTTP requests to the endpoints.
 
 ### **Example requests:**
 ### Create an Account
