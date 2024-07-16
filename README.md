@@ -1,5 +1,5 @@
 # Simple ATM on REST
-![GitHub](https://img.shields.io/github/license/SnikS1337/Simple-ATM-on-REST)
+![GitHub](https://img.shields.io/github/LICENSE/SnikS1337/Simple-ATM-on-REST)
 ![GitHub last commit](https://img.shields.io/github/last-commit/SnikS1337/Simple-ATM-on-REST)
 
 This project is a simple REST API to simulate the operation of an ATM. It allows you to create accounts, top up your balance, withdraw funds and check your balance.
