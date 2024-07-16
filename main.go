@@ -28,7 +28,7 @@ func (a *Account) Deposit(amount float64) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	a.Balance += amount
-	log.Printf("Было зачислено средств в размере: %.2f на аккаунт %s. Новый баланс: %.2f\n", amount, a.ID, a.Balance)
+	log.Printf("Deposited: %.2f to account %s. New balance: %.2f\n", amount, a.ID, a.Balance)
 	return nil
 }
 
@@ -40,7 +40,7 @@ func (a *Account) Withdraw(amount float64) error {
 		return NotEnoughMoney
 	}
 	a.Balance -= amount
-	log.Printf("Было выведено средств в размере: %.2f с аккаунта %s. Новый баланс: %.2f\n", amount, a.ID, a.Balance)
+	log.Printf("Withdrawed: %.2f from account %s. New balance: %.2f\n", amount, a.ID, a.Balance)
 	return nil
 }
 
@@ -48,16 +48,17 @@ func (a *Account) Withdraw(amount float64) error {
 func (a *Account) GetBalance() float64 {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	log.Printf("Был проверен баланс для аккаунта %s. Баланс: %.2f\n", a.ID, a.Balance)
+	log.Printf("Checked balance for account %s. Balance: %.2f\n", a.ID, a.Balance)
 	return a.Balance
 }
 
 var (
 	accounts       = make(map[string]*Account)
 	mu             sync.Mutex
-	NotEnoughMoney = errors.New("недостаточно средств")
+	NotEnoughMoney = errors.New("not enough money")
 )
 
+// main make entry point, start the server and initialize methods
 func main() {
 	r := mux.NewRouter()
 
@@ -70,6 +71,7 @@ func main() {
 	log.Fatal(http.ListenAndServe(":10533", r))
 }
 
+// createAccount creates new account
 func createAccount(w http.ResponseWriter, r *http.Request) {
 	var acc Account
 	if err := json.NewDecoder(r.Body).Decode(&acc); err != nil {
@@ -80,9 +82,10 @@ func createAccount(w http.ResponseWriter, r *http.Request) {
 	accounts[acc.ID] = &acc
 	mu.Unlock()
 	w.WriteHeader(http.StatusCreated)
-	log.Printf("Создан аккаунт %s\n", acc.ID)
+	log.Printf("Created account %s\n", acc.ID)
 }
 
+// deposit funds to account
 func deposit(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
@@ -90,7 +93,7 @@ func deposit(w http.ResponseWriter, r *http.Request) {
 	acc, ok := accounts[id]
 	mu.Unlock()
 	if !ok {
-		http.Error(w, "Аккаунт не найден", http.StatusNotFound)
+		http.Error(w, "Account not found", http.StatusNotFound)
 		return
 	}
 	var deposit struct {
@@ -103,12 +106,13 @@ func deposit(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		err := acc.Deposit(deposit.Amount)
 		if err != nil {
-			log.Printf("Ошибка внесения средств %v на аккаунт %s. Ошибка: %s", deposit.Amount, acc.ID, err)
+			log.Printf("Error deposit funds %v to account %s. Error: %s", deposit.Amount, acc.ID, err)
 		}
 	}()
 	w.WriteHeader(http.StatusOK)
 }
 
+// withdraw funds from account
 func withdraw(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
@@ -116,7 +120,7 @@ func withdraw(w http.ResponseWriter, r *http.Request) {
 	acc, ok := accounts[id]
 	mu.Unlock()
 	if !ok {
-		http.Error(w, "Аккаунт не найден", http.StatusNotFound)
+		http.Error(w, "Account not found", http.StatusNotFound)
 		return
 	}
 	var withdrawal struct {
@@ -127,13 +131,14 @@ func withdraw(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := acc.Withdraw(withdrawal.Amount); err != nil {
-		log.Printf("Ошибка вывода средств с аккаунта %s. Ошибка: %s", acc.ID, err)
+		log.Printf("Error withdraw funds from account %s. Error: %s", acc.ID, err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	w.WriteHeader(http.StatusOK)
 }
 
+// getBalance returns the account balance
 func getBalance(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
@@ -141,13 +146,13 @@ func getBalance(w http.ResponseWriter, r *http.Request) {
 	acc, ok := accounts[id]
 	mu.Unlock()
 	if !ok {
-		http.Error(w, "Аккаунт не найден", http.StatusNotFound)
+		http.Error(w, "Account not found", http.StatusNotFound)
 		return
 	}
 	balance := acc.GetBalance()
 	err := json.NewEncoder(w).Encode(map[string]float64{"balance": balance})
 	if err != nil {
-		log.Printf("Ошибка получения данных баланса для аккаунта %s. Ошибка: %s", id, err)
+		log.Printf("Error getting balance for account %s. Error: %s", id, err)
 		return
 	}
 }

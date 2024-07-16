@@ -12,18 +12,18 @@ import (
 )
 
 func TestAccountOperations(t *testing.T) {
-	// Очищаем глобальные переменные перед каждым тестом
+	// Clear global variables before each test
 	accounts = make(map[string]*Account)
 	mu = sync.Mutex{}
 
-	// Создаем маршрутизатор
+	// Making router
 	r := mux.NewRouter()
 	r.HandleFunc("/accounts", createAccount).Methods("POST")
 	r.HandleFunc("/accounts/{id}/deposit", deposit).Methods("POST")
 	r.HandleFunc("/accounts/{id}/withdraw", withdraw).Methods("POST")
 	r.HandleFunc("/accounts/{id}/balance", getBalance).Methods("GET")
 
-	// Создаем новый аккаунт
+	// Create new account
 	createAccountReq := Account{ID: "123", Balance: 100.0}
 	createAccountReqBody, _ := json.Marshal(createAccountReq)
 	req := httptest.NewRequest("POST", "/accounts", bytes.NewBuffer(createAccountReqBody))
@@ -33,7 +33,7 @@ func TestAccountOperations(t *testing.T) {
 		t.Errorf("Expected status %d, got %d", http.StatusCreated, w.Code)
 	}
 
-	// Пополняем баланс
+	// Deposit balance
 	depositReq := map[string]float64{"amount": 50.0}
 	depositReqBody, _ := json.Marshal(depositReq)
 	req = httptest.NewRequest("POST", "/accounts/123/deposit", bytes.NewBuffer(depositReqBody))
@@ -43,7 +43,7 @@ func TestAccountOperations(t *testing.T) {
 		t.Errorf("Expected status %d, got %d", http.StatusOK, w.Code)
 	}
 
-	// Проверяем баланс
+	// Check balance
 	req = httptest.NewRequest("GET", "/accounts/123/balance", nil)
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -56,7 +56,7 @@ func TestAccountOperations(t *testing.T) {
 		t.Errorf("Expected balance 150.0, got %f", balanceResp["balance"])
 	}
 
-	// Снимаем средства
+	// Withdraw funds
 	withdrawReq := map[string]float64{"amount": 75.0}
 	withdrawReqBody, _ := json.Marshal(withdrawReq)
 	req = httptest.NewRequest("POST", "/accounts/123/withdraw", bytes.NewBuffer(withdrawReqBody))
@@ -66,7 +66,7 @@ func TestAccountOperations(t *testing.T) {
 		t.Errorf("Expected status %d, got %d", http.StatusOK, w.Code)
 	}
 
-	// Проверяем баланс после снятия
+	// Check balance after withdraw
 	req = httptest.NewRequest("GET", "/accounts/123/balance", nil)
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -78,7 +78,7 @@ func TestAccountOperations(t *testing.T) {
 		t.Errorf("Expected balance 75.0, got %f", balanceResp["balance"])
 	}
 
-	// Попытка снятия средств с недостаточным балансом
+	// Attempted withdrawal with insufficient balance
 	withdrawReq = map[string]float64{"amount": 100.0}
 	withdrawReqBody, _ = json.Marshal(withdrawReq)
 	req = httptest.NewRequest("POST", "/accounts/123/withdraw", bytes.NewBuffer(withdrawReqBody))
