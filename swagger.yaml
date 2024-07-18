@@ -1,0 +1,124 @@
+swagger: '2.0'
+info:
+  title: Bank Account API
+  description: This is a simple bank account API.
+  version: 1.0.0
+host: localhost:8080
+basePath: /
+schemes:
+  - http
+paths:
+  /accounts:
+    post:
+      summary: Create a new account
+      description: Create a new bank account
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          name: account
+          description: Account object
+          required: true
+          schema:
+            $ref: '#/definitions/Account'
+      responses:
+        '201':
+          description: Account created
+          schema:
+            $ref: '#/definitions/Account'
+  /accounts/{id}/deposit:
+    post:
+      summary: Deposit funds to an account
+      description: Deposit funds to a bank account
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: path
+          name: id
+          description: Account ID
+          required: true
+          type: string
+        - in: body
+          name: amount
+          description: Amount to deposit
+          required: true
+          schema:
+            type: object
+            properties:
+              amount:
+                type: number
+                format: float
+      responses:
+        '200':
+          description: Deposit successful
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+  /accounts/{id}/withdraw:
+    post:
+      summary: Withdraw funds from an account
+      description: Withdraw funds from a bank account
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: path
+          name: id
+          description: Account ID
+          required: true
+          type: string
+        - in: body
+          name: amount
+          description: Amount to withdraw
+          required: true
+          schema:
+            type: object
+            properties:
+              amount:
+                type: number
+                format: float
+      responses:
+        '200':
+          description: Withdrawal successful
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+  /accounts/{id}/balance:
+    get:
+      summary: Get account balance
+      description: Get the balance of a bank account
+      produces:
+        - application/json
+      parameters:
+        - in: path
+          name: id
+          description: Account ID
+          required: true
+          type: string
+      responses:
+        '200':
+          description: Successful operation
+          schema:
+            type: object
+            properties:
+              balance:
+                type: number
+                format: float
+definitions:
+  Account:
+    type: object
+    properties:
+      id:
+        type: string
+      balance:
+        type: number
+        format: float
