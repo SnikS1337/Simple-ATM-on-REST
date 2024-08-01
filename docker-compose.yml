@@ -1,0 +1,29 @@
+services:
+  postgres:
+    image: postgres
+    ports:
+      - '5432:5432'
+    networks:
+      - internal
+    environment:
+      - POSTGRES_PASSWORD=admin
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  server:
+    container_name: POS
+    build:
+      context: .
+      dockerfile: D:\GOLANG\BANKOMAT\Simple-ATM-on-REST\Dockerfile
+    command: bash -c "go build && . -b 0.0.0.0:8080 --timeout 120"
+    expose:
+      - 8080
+    networks:
+      - internal
+    stdin_open: true
+volumes:
+  postgres_data:
+  server:
+networks:
+  internal:
+    driver: bridge

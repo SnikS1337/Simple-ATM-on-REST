@@ -1,9 +1,13 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/gorilla/mux"
+	"github.com/joho/godotenv"
+	_ "github.com/lib/pq"
 	"github.com/rs/cors"
 	_ "github.com/swaggo/http-swagger/example/go-chi/docs"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
@@ -58,6 +62,8 @@ func (a *Account) GetBalance() float64 {
 }
 
 var (
+	db             *sql.DB
+	dbClient       *DBClient
 	accounts       = make(map[string]*Account)
 	mu             sync.Mutex
 	NotEnoughMoney = errors.New("not enough money")
@@ -69,6 +75,19 @@ func enableCors(w *http.ResponseWriter) {
 
 // main make entry point, start the server and initialize methods
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+
+	db, err = sql.Open("postgres", "postgres://postgres:admin@localhost:5432/postgres?sslmode=disable")
+	if err != nil {
+		log.Fatal("Error while connecting to database", err)
+	}
+	defer db.Close()
+
+	dbClient = NewDBClient(db)
+
 	r := mux.NewRouter()
 
 	r.HandleFunc("/accounts", createAccount).Methods("POST")
@@ -105,7 +124,6 @@ func main() {
 	handler := cors.Default().Handler(r)
 	log.Println("Starting server on :8080")
 	log.Fatal(http.ListenAndServe(":8080", handler))
-
 }
 
 // createAccount creates new account
@@ -118,6 +136,15 @@ func createAccount(w http.ResponseWriter, r *http.Request) {
 	mu.Lock()
 	accounts[acc.ID] = &acc
 	mu.Unlock()
+	if dbClient == nil {
+		http.Error(w, "Database client is not initialized", http.StatusInternalServerError)
+		return
+	}
+	err := dbClient.CreateAccount(&acc)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	w.WriteHeader(http.StatusCreated)
 	log.Printf("Created account %s\n", acc.ID)
 }
@@ -144,6 +171,10 @@ func deposit(w http.ResponseWriter, r *http.Request) {
 		err := acc.Deposit(deposit.Amount)
 		if err != nil {
 			log.Printf("Error deposit funds %v to account %s. Error: %s", deposit.Amount, acc.ID, err)
+		}
+		err = dbClient.UpdateBalance(acc)
+		if err != nil {
+			log.Printf("Error updating balance for account %s. Error: %s", acc.ID, err)
 		}
 	}()
 	w.WriteHeader(http.StatusOK)
@@ -172,6 +203,12 @@ func withdraw(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	err := dbClient.UpdateBalance(acc)
+	if err != nil {
+		log.Printf("Error updating balance in DB for account %s. Error: %s", acc.ID, err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -192,4 +229,14 @@ func getBalance(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error getting balance for account %s. Error: %s", id, err)
 		return
 	}
+}
+
+func getDBConnection() string {
+	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		os.Getenv("POSTGRES_USER"),
+		os.Getenv("POSTGRES_PASSWORD"),
+		os.Getenv("POSTGRES_HOST"),
+		os.Getenv("POSTGRES_PORT"),
+		os.Getenv("POSTGRES_DB"),
+	)
 }
