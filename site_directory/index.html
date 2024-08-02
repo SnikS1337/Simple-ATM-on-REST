@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bank Operations</title>
+</head>
+<body>
+<button id="createAccount">Create Account</button>
+<button id="deposit">Deposit</button>
+<button id="withdraw">Withdraw</button>
+<button id="getBalance">Get Balance</button>
+
+<script>
+    document.getElementById('createAccount').addEventListener('click', function() {
+        fetch('http://localhost:8080/accounts', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ ID: '123', Balance: 100 })
+        })
+            .then(response => response.json())
+            .then(data => console.log(data))
+            .catch(error => console.error('Error:', error));
+    });
+
+    document.getElementById('deposit').addEventListener('click', function() {
+        fetch('http://localhost:8080/accounts/123/deposit', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ amount: 50 })
+        })
+            .then(response => response.json())
+            .then(data => console.log(data))
+            .catch(error => console.error('Error:', error));
+    });
+
+    document.getElementById('withdraw').addEventListener('click', function() {
+        fetch('http://localhost:8080/accounts/123/withdraw', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ amount: 30 })
+        })
+            .then(response => response.json())
+            .then(data => console.log(data))
+            .catch(error => console.error('Error:', error));
+    });
+
+    document.getElementById('getBalance').addEventListener('click', function() {
+        fetch('http://localhost:8080/accounts/123/balance', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+            .then(response => response.json())
+            .then(data => console.log(data))
+            .catch(error => console.error('Error:', error));
+    });
+</script>
+</body>
+</html>

@@ -73,6 +73,47 @@ func enableCors(w *http.ResponseWriter) {
 	(*w).Header().Set("Access-Control-Allow-Origin", "*")
 }
 
+//TO:DO 136 STR AUTH
+
+//type (
+//	AuthHandler struct {
+//		storage *AuthStorage
+//	}
+//
+//	AuthStorage struct {
+//		users map[string]User
+//	}
+//
+//	User struct {
+//		ID      string
+//		Balance float64
+//	}
+//)
+//
+//type RegisterRequest struct {
+//	ID      string  `json:"id"`
+//	Balance float64 `json:"balance"`
+//}
+//
+//func (h *AuthHandler) Register(c *fiber.Ctx) error {
+//	regReq := RegisterRequest{}
+//	if err := c.BodyParser(&regReq); err != nil {
+//		return fmt.Errorf("could not parse body: %w", err)
+//	}
+//
+//	if _, ok := h.storage.users[regReq.ID]; ok {
+//		return errors.New("user already exists")
+//	}
+//
+//	h.storage.users[regReq.ID] = User{
+//		ID:      regReq.ID,
+//		Balance: regReq.Balance,
+//	}
+//
+//	return c.SendStatus(fiber.StatusCreated)
+//
+//}
+
 // main make entry point, start the server and initialize methods
 func main() {
 	err := godotenv.Load()
@@ -89,6 +130,11 @@ func main() {
 	dbClient = NewDBClient(db)
 
 	r := mux.NewRouter()
+
+	//app := fiber.New()
+	//authHandler := &AuthHandler{&AuthStorage{map[string]User{}}} 			//TO:DO add auth
+	//app.Post("/register", authHandler.Register)
+	//logrus.Fatal(app.Listen(":80"))
 
 	r.HandleFunc("/accounts", createAccount).Methods("POST")
 	r.HandleFunc("/accounts/{id}/deposit", deposit).Methods("POST")

@@ -11,10 +11,38 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// DBClientInterface defines the methods that a DBClient must implement
+type DBClientInterface interface {
+	CreateAccount(acc *Account) error
+	UpdateBalance(acc *Account) error
+	GetBalance(id string) (float64, error)
+}
+
+// MockDBClient is a mock implementation of DBClient for testing
+type MockDBClient struct{}
+
+func (m *MockDBClient) CreateAccount(acc *Account) error {
+	return nil
+}
+
+func (m *MockDBClient) UpdateBalance(acc *Account) error {
+	return nil
+}
+
+func (m *MockDBClient) GetBalance(id string) (float64, error) {
+	return accounts[id].Balance, nil
+}
+
 func TestAccountOperations(t *testing.T) {
 	// Clear global variables before each test
 	accounts = make(map[string]*Account)
 	mu = sync.Mutex{}
+
+	// Initialize dbClient with a mock implementation
+	DBClientInterface := &MockDBClient{}
+	if DBClientInterface.CreateAccount(&Account{}) != nil {
+		t.Error("Failed to create account")
+	}
 
 	// Making router
 	r := mux.NewRouter()
