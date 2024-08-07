@@ -129,6 +129,8 @@ func main() {
 
 	dbClient = NewDBClient(db)
 
+	initRedis()
+
 	r := mux.NewRouter()
 
 	//app := fiber.New()
@@ -222,6 +224,7 @@ func deposit(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Printf("Error updating balance for account %s. Error: %s", acc.ID, err)
 		}
+		SetBalanceToCache(acc.ID, acc.Balance)
 	}()
 	w.WriteHeader(http.StatusOK)
 }
@@ -255,6 +258,7 @@ func withdraw(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	SetBalanceToCache(acc.ID, acc.Balance)
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -262,6 +266,16 @@ func withdraw(w http.ResponseWriter, r *http.Request) {
 func getBalance(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
+
+	balance, err := GetBalanceFromCache(id)
+	if err == nil {
+		log.Printf("Balance for account %s is %.2f\n", id, balance)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]float64{"balance": balance})
+		return
+	}
+
 	mu.Lock()
 	acc, ok := accounts[id]
 	mu.Unlock()
@@ -269,20 +283,24 @@ func getBalance(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Account not found", http.StatusNotFound)
 		return
 	}
-	balance := acc.GetBalance()
-	err := json.NewEncoder(w).Encode(map[string]float64{"balance": balance})
+	balance = acc.GetBalance()
+
+	err = SetBalanceToCache(id, balance)
 	if err != nil {
-		log.Printf("Error getting balance for account %s. Error: %s", id, err)
-		return
+		log.Printf("Error updating balance for account in Redis %s. Error: %s", id, err)
 	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]float64{"balance": balance})
+
 }
 
 func getDBConnection() string {
 	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		os.Getenv("POSTGRES_USER"),
-		os.Getenv("POSTGRES_PASSWORD"),
-		os.Getenv("POSTGRES_HOST"),
-		os.Getenv("POSTGRES_PORT"),
-		os.Getenv("POSTGRES_DB"),
+		os.Getenv("POSTGRES_USER"),     // Username of database
+		os.Getenv("POSTGRES_PASSWORD"), // Password of database
+		os.Getenv("POSTGRES_HOST"),     // Host of database
+		os.Getenv("POSTGRES_PORT"),     // Port of database
+		os.Getenv("POSTGRES_DB"),       //Name of database
 	)
 }
