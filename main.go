@@ -73,6 +73,16 @@ func enableCors(w *http.ResponseWriter) {
 	(*w).Header().Set("Access-Control-Allow-Origin", "*")
 }
 
+func getDBConnection() string {
+	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		os.Getenv("POSTGRES_USER"),
+		os.Getenv("POSTGRES_PASSWORD"),
+		os.Getenv("POSTGRES_HOST"),
+		os.Getenv("POSTGRES_PORT"),
+		os.Getenv("POSTGRES_DB"),
+	)
+}
+
 // main make entry point, start the server and initialize methods
 func main() {
 	err := godotenv.Load()
@@ -80,9 +90,11 @@ func main() {
 		log.Fatal("Error loading .env file")
 	}
 
-	db, err = sql.Open("postgres", "postgres://postgres:admin@localhost:5432/postgres?sslmode=disable")
+	dbConnectionString := getDBConnection()
+
+	db, err := sql.Open("postgres", dbConnectionString)
 	if err != nil {
-		log.Fatal("Error while connecting to database", err)
+		log.Fatalf("Error while connecting to database: %s", err)
 	}
 	defer db.Close()
 
@@ -229,14 +241,4 @@ func getBalance(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error getting balance for account %s. Error: %s", id, err)
 		return
 	}
-}
-
-func getDBConnection() string {
-	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		os.Getenv("POSTGRES_USER"),
-		os.Getenv("POSTGRES_PASSWORD"),
-		os.Getenv("POSTGRES_HOST"),
-		os.Getenv("POSTGRES_PORT"),
-		os.Getenv("POSTGRES_DB"),
-	)
 }
