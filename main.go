@@ -73,6 +73,16 @@ func enableCors(w *http.ResponseWriter) {
 	(*w).Header().Set("Access-Control-Allow-Origin", "*")
 }
 
+func getDBConnection() string {
+	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		os.Getenv("POSTGRES_USER"),     // Username of database
+		os.Getenv("POSTGRES_PASSWORD"), // Password of database
+		os.Getenv("POSTGRES_HOST"),     // Host of database
+		os.Getenv("POSTGRES_PORT"),     // Port of database
+		os.Getenv("POSTGRES_DB"),       //Name of database
+	)
+}
+
 //TO:DO 136 STR AUTH
 
 //type (
@@ -121,15 +131,17 @@ func main() {
 		log.Fatal("Error loading .env file")
 	}
 
-	db, err = sql.Open("postgres", "postgres://postgres:admin@localhost:5432/postgres?sslmode=disable")
+	dbConnectionString := getDBConnection()
+
+	db, err = sql.Open("postgres", dbConnectionString)
 	if err != nil {
-		log.Fatal("Error while connecting to database", err)
+		log.Fatal("Error connecting to database", err)
 	}
 	defer db.Close()
 
-	dbClient = NewDBClient(db)
+	//dbClient = NewDBClient(db)
 
-	initRedis()
+	//initRedis()
 
 	r := mux.NewRouter()
 
@@ -293,14 +305,4 @@ func getBalance(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]float64{"balance": balance})
 
-}
-
-func getDBConnection() string {
-	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		os.Getenv("POSTGRES_USER"),     // Username of database
-		os.Getenv("POSTGRES_PASSWORD"), // Password of database
-		os.Getenv("POSTGRES_HOST"),     // Host of database
-		os.Getenv("POSTGRES_PORT"),     // Port of database
-		os.Getenv("POSTGRES_DB"),       //Name of database
-	)
 }

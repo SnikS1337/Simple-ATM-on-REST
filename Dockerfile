@@ -2,8 +2,10 @@ FROM golang:latest
 
 WORKDIR .
 
-COPY go.mod .
-COPY go.sum .
+COPY go.mod go.sum ./
 RUN go mod download
-COPY . .
 
+COPY . .
+RUN go build -o main.go
+
+CMD ["./main.go"]
