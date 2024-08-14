@@ -2,7 +2,7 @@ services:
   postgres:
     image: postgres:alpine
     ports:
-      - "5432:5432"
+      - '5432:8080'
     networks:
       - internal
     environment:
@@ -18,8 +18,8 @@ services:
     container_name: POS
     build:
       context: .
-      dockerfile: /Dockerfile
-    command: bash -c "go build -o server && ./server -b 0.0.0.0:8080 --timeout 120"
+      dockerfile: Dockerfile
+#    command: bash -c "go build -o server && ./server -b 0.0.0.0:8080 --timeout 120"
     expose:
       - "postgres:5432"
     networks:

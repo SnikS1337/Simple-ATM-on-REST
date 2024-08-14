@@ -20,8 +20,6 @@ func main() {
 		log.Fatal("Error loading .env file")
 	}
 
-	// TODO: CREATE BOOL CHECK SCANNER
-
 	scanner()
 
 	r := mux.NewRouter()

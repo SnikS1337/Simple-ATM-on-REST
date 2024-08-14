@@ -34,7 +34,7 @@ func (a *Account) Deposit(amount float64) error {
 	return nil
 }
 
-// Withdraw implements BankAccount interface
+// Withdraw withdraws funds from account
 func (a *Account) Withdraw(amount float64) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -46,7 +46,7 @@ func (a *Account) Withdraw(amount float64) error {
 	return nil
 }
 
-// GetBalance implements BankAccount interface
+// GetBalance return balance of account
 func (a *Account) GetBalance() float64 {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -72,7 +72,6 @@ func createAccount(w http.ResponseWriter, r *http.Request) {
 	mu.Lock()
 	accounts[acc.ID] = &acc
 	mu.Unlock()
-
 	if !useDatabase {
 		w.WriteHeader(http.StatusCreated)
 		log.Printf("Created account %s\n", acc.ID)
@@ -82,7 +81,6 @@ func createAccount(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-
 	if dbClient == nil {
 		http.Error(w, "Database client is not initialized", http.StatusInternalServerError)
 		return
@@ -116,13 +114,16 @@ func deposit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	go func() {
-		err := acc.Deposit(deposit.Amount)
-		if err != nil {
-			log.Printf("Error deposit funds %v to account %s. Error: %s", deposit.Amount, acc.ID, err)
-		}
-		err = dbClient.UpdateBalance(acc)
-		if err != nil {
-			log.Printf("Error updating balance for account %s. Error: %s", acc.ID, err)
+		if !useDatabase {
+			err := acc.Deposit(deposit.Amount)
+			if err != nil {
+				log.Printf("Error deposit funds %v to account %s. Error: %s", deposit.Amount, acc.ID, err)
+			}
+		} else {
+			err := dbClient.UpdateBalance(acc)
+			if err != nil {
+				log.Printf("Error updating balance for account %s. Error: %s", acc.ID, err)
+			}
 		}
 	}()
 	w.WriteHeader(http.StatusOK)
@@ -142,22 +143,27 @@ func withdraw(w http.ResponseWriter, r *http.Request) {
 	var withdrawal struct {
 		Amount float64 `json:"amount"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&withdrawal); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	if err := acc.Withdraw(withdrawal.Amount); err != nil {
-		log.Printf("Error withdraw funds from account %s. Error: %s", acc.ID, err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	err := dbClient.UpdateBalance(acc)
+	err := json.NewDecoder(r.Body).Decode(&withdrawal)
 	if err != nil {
-		log.Printf("Error updating balance in DB for account %s. Error: %s", acc.ID, err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
+	if !useDatabase {
+		err := acc.Withdraw(withdrawal.Amount)
+		if err != nil {
+			log.Printf("Error withdraw funds from account %s. Error: %s", acc.ID, err)
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+	} else {
+		err := dbClient.UpdateBalance(acc)
+		if err != nil {
+			log.Printf("Error updating balance in DB for account %s. Error: %s", acc.ID, err)
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}
 }
 
 // getBalance returns the account balance

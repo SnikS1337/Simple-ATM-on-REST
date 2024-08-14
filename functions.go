@@ -24,7 +24,6 @@ func scanner() bool {
 			return false
 		}
 	}
-
 	dbConnectionString := getDBConnection()
 	db, err := sql.Open("postgres", dbConnectionString)
 	if err != nil {
