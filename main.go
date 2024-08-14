@@ -1,10 +1,6 @@
 package main
 
 import (
-	"database/sql"
-	"encoding/json"
-	"errors"
-	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
@@ -15,73 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"sync"
 )
-
-// BankAccount interface
-type BankAccount interface {
-	Deposit(amount float64) error
-	Withdraw(amount float64) error
-	GetBalance() float64
-}
-
-// Account struct
-type Account struct {
-	ID      string
-	Balance float64
-	mu      sync.Mutex
-}
-
-// Deposit implements BankAccount interface
-func (a *Account) Deposit(amount float64) error {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	a.Balance += amount
-	log.Printf("Deposited: %.2f to account %s. New balance: %.2f\n", amount, a.ID, a.Balance)
-	return nil
-}
-
-// Withdraw implements BankAccount interface
-func (a *Account) Withdraw(amount float64) error {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	if a.Balance < amount {
-		return NotEnoughMoney
-	}
-	a.Balance -= amount
-	log.Printf("Withdrawed: %.2f from account %s. New balance: %.2f\n", amount, a.ID, a.Balance)
-	return nil
-}
-
-// GetBalance implements BankAccount interface
-func (a *Account) GetBalance() float64 {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	log.Printf("Checked balance for account %s. Balance: %.2f\n", a.ID, a.Balance)
-	return a.Balance
-}
-
-var (
-	db             *sql.DB
-	dbClient       *DBClient
-	accounts       = make(map[string]*Account)
-	mu             sync.Mutex
-	NotEnoughMoney = errors.New("not enough money")
-)
-
-func enableCors(w *http.ResponseWriter) {
-	(*w).Header().Set("Access-Control-Allow-Origin", "*")
-}
-
-func getDBConnection() string {
-	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		os.Getenv("POSTGRES_USER"),
-		os.Getenv("POSTGRES_PASSWORD"),
-		os.Getenv("POSTGRES_HOST"),
-		os.Getenv("POSTGRES_PORT"),
-		os.Getenv("POSTGRES_DB"),
-	)
-}
 
 // main make entry point, start the server and initialize methods
 func main() {
@@ -90,15 +20,9 @@ func main() {
 		log.Fatal("Error loading .env file")
 	}
 
-	dbConnectionString := getDBConnection()
+	// TODO: CREATE BOOL CHECK SCANNER
 
-	db, err := sql.Open("postgres", dbConnectionString)
-	if err != nil {
-		log.Fatalf("Error while connecting to database: %s", err)
-	}
-	defer db.Close()
-
-	dbClient = NewDBClient(db)
+	scanner()
 
 	r := mux.NewRouter()
 
@@ -112,7 +36,11 @@ func main() {
 	))
 
 	r.HandleFunc("/swagger/doc.json", func(w http.ResponseWriter, r *http.Request) {
-		yamlFilePath, err := filepath.Abs("D:\\GOLANG\\BANKOMAT\\Simple-ATM-on-REST\\swagger.yaml")
+		wd, err := os.Getwd()
+		if err != nil {
+			log.Fatalf("Could not get working directory: %s", err)
+		}
+		yamlFilePath, err := filepath.Rel(wd, "swagger.yaml")
 		if err != nil {
 			http.Error(w, "Could not find Swagger YAML file", http.StatusInternalServerError)
 			return
@@ -134,111 +62,7 @@ func main() {
 	})
 
 	handler := cors.Default().Handler(r)
-	log.Println("Starting server on :8080")
+	log.Println("Starting server on port: 8080")
 	log.Fatal(http.ListenAndServe(":8080", handler))
-}
 
-// createAccount creates new account
-func createAccount(w http.ResponseWriter, r *http.Request) {
-	var acc Account
-	if err := json.NewDecoder(r.Body).Decode(&acc); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	mu.Lock()
-	accounts[acc.ID] = &acc
-	mu.Unlock()
-	if dbClient == nil {
-		http.Error(w, "Database client is not initialized", http.StatusInternalServerError)
-		return
-	}
-	err := dbClient.CreateAccount(&acc)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.WriteHeader(http.StatusCreated)
-	log.Printf("Created account %s\n", acc.ID)
-}
-
-// deposit funds to account
-func deposit(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
-	mu.Lock()
-	acc, ok := accounts[id]
-	mu.Unlock()
-	if !ok {
-		http.Error(w, "Account not found", http.StatusNotFound)
-		return
-	}
-	var deposit struct {
-		Amount float64 `json:"amount"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&deposit); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	go func() {
-		err := acc.Deposit(deposit.Amount)
-		if err != nil {
-			log.Printf("Error deposit funds %v to account %s. Error: %s", deposit.Amount, acc.ID, err)
-		}
-		err = dbClient.UpdateBalance(acc)
-		if err != nil {
-			log.Printf("Error updating balance for account %s. Error: %s", acc.ID, err)
-		}
-	}()
-	w.WriteHeader(http.StatusOK)
-}
-
-// withdraw funds from account
-func withdraw(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
-	mu.Lock()
-	acc, ok := accounts[id]
-	mu.Unlock()
-	if !ok {
-		http.Error(w, "Account not found", http.StatusNotFound)
-		return
-	}
-	var withdrawal struct {
-		Amount float64 `json:"amount"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&withdrawal); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	if err := acc.Withdraw(withdrawal.Amount); err != nil {
-		log.Printf("Error withdraw funds from account %s. Error: %s", acc.ID, err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	err := dbClient.UpdateBalance(acc)
-	if err != nil {
-		log.Printf("Error updating balance in DB for account %s. Error: %s", acc.ID, err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	w.WriteHeader(http.StatusOK)
-}
-
-// getBalance returns the account balance
-func getBalance(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
-	mu.Lock()
-	acc, ok := accounts[id]
-	mu.Unlock()
-	if !ok {
-		http.Error(w, "Account not found", http.StatusNotFound)
-		return
-	}
-	balance := acc.GetBalance()
-	err := json.NewEncoder(w).Encode(map[string]float64{"balance": balance})
-	if err != nil {
-		log.Printf("Error getting balance for account %s. Error: %s", id, err)
-		return
-	}
 }

@@ -11,6 +11,8 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// TODO: FIX TESTS
+
 func TestAccountOperations(t *testing.T) {
 	// Clear global variables before each test
 	accounts = make(map[string]*Account)

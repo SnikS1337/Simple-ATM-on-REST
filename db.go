@@ -13,6 +13,14 @@ func NewDBClient(db *sql.DB) *DBClient {
 	return &DBClient{db: db}
 }
 
+func (dbc *DBClient) CreateTable() error {
+	_, err := dbc.db.Exec("CREATE TABLE IF NOT EXISTS accounts (id serial PRIMARY KEY, balance bigint)")
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (dbc *DBClient) CreateAccount(acc *Account) error {
 	_, err := dbc.db.Exec("INSERT INTO accounts (id, balance) VALUES ($1, $2)", acc.ID, acc.Balance)
 	if err != nil {
